@@ -1,12 +1,10 @@
-const Product = require("../models");
-const Store = require("../models");
+const { Product, Store, Category } = require("../models");
 
 class ProductController {
   // Add a new product
   async addProduct(req, res) {
     try {
-      const { store, name, price, supplier, stock, category, thumbnail } =
-        req.body;
+      const { store, name, price, stock, category, thumbnail } = req.body;
 
       // Check if the store exists
       const storeExists = await Store.findById(store);
@@ -17,8 +15,17 @@ class ProductController {
         });
       }
 
+      // Check if the category exists
+      const categoryExists = await Category.findById(category);
+      if (!categoryExists) {
+        return res.status(404).json({
+          success: false,
+          message: "Category not found.",
+        });
+      }
+
       // Ensure the authenticated user is the owner of the store
-      if (storeExists.owner.toString() !== req.user.id) {
+      if (storeExists.owner.toString() !== req.user.userId) {
         return res.status(403).json({
           success: false,
           message: "You are not authorized to add products to this store.",
@@ -29,7 +36,6 @@ class ProductController {
         store,
         name,
         price,
-        supplier,
         stock,
         category,
         thumbnail,
@@ -46,7 +52,7 @@ class ProductController {
       console.error("Error adding product:", error);
       res.status(500).json({
         success: false,
-        message: "Internal server error.",
+        message: error.message || "Internal server error.",
       });
     }
   }
@@ -56,10 +62,9 @@ class ProductController {
     try {
       const { id } = req.params;
 
-      const product = await Product.findById(id).populate(
-        "store",
-        "name category"
-      );
+      const product = await Product.findById(id)
+        .populate("store", "name")
+        .populate("category", "name description");
       if (!product) {
         return res.status(404).json({
           success: false,
@@ -72,7 +77,7 @@ class ProductController {
       console.error("Error fetching product:", error);
       res.status(500).json({
         success: false,
-        message: "Internal server error.",
+        message: error.message || "Internal server error.",
       });
     }
   }
@@ -80,7 +85,9 @@ class ProductController {
   // Get all products
   async getAllProducts(req, res) {
     try {
-      const products = await Product.find().populate("store", "name category");
+      const products = await Product.find()
+        .populate("store", "name")
+        .populate("category", "name description");
 
       res.status(200).json({
         success: true,
@@ -90,7 +97,7 @@ class ProductController {
       console.error("Error fetching products:", error);
       res.status(500).json({
         success: false,
-        message: "Internal server error.",
+        message: error.message || "Internal server error.",
       });
     }
   }
@@ -101,6 +108,7 @@ class ProductController {
       const { id } = req.params;
       const updates = req.body;
 
+      // Find the product by ID
       const product = await Product.findById(id);
       if (!product) {
         return res.status(404).json({
@@ -109,15 +117,35 @@ class ProductController {
         });
       }
 
-      // Check if the authenticated user is the owner of the store where the product belongs
+      // Check if the store exists
       const store = await Store.findById(product.store);
-      if (store.owner.toString() !== req.user.id) {
+      if (!store) {
+        return res.status(404).json({
+          success: false,
+          message: "Store associated with the product not found.",
+        });
+      }
+
+      // Ensure the authenticated user is the owner of the store
+      if (store.owner.toString() !== req.user.userId) {
         return res.status(403).json({
           success: false,
           message: "You are not authorized to update this product.",
         });
       }
 
+      // Validate the new category if updated
+      if (updates.category) {
+        const categoryExists = await Category.findById(updates.category);
+        if (!categoryExists) {
+          return res.status(404).json({
+            success: false,
+            message: "Category not found.",
+          });
+        }
+      }
+
+      // Update the product with the provided data
       Object.assign(product, updates);
       await product.save();
 
@@ -130,7 +158,7 @@ class ProductController {
       console.error("Error updating product:", error);
       res.status(500).json({
         success: false,
-        message: "Internal server error.",
+        message: error.message || "Internal server error.",
       });
     }
   }
@@ -150,14 +178,14 @@ class ProductController {
 
       // Check if the authenticated user is the owner of the store where the product belongs
       const store = await Store.findById(product.store);
-      if (store.owner.toString() !== req.user.id) {
+      if (store.owner.toString() !== req.user.userId) {
         return res.status(403).json({
           success: false,
           message: "You are not authorized to delete this product.",
         });
       }
 
-      await product.remove();
+      await product.deleteOne();
 
       res.status(200).json({
         success: true,
@@ -167,7 +195,7 @@ class ProductController {
       console.error("Error deleting product:", error);
       res.status(500).json({
         success: false,
-        message: "Internal server error.",
+        message: error.message || "Internal server error.",
       });
     }
   }

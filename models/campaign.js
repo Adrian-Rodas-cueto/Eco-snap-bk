@@ -7,17 +7,30 @@ const campaignSchema = new mongoose.Schema(
       ref: "Store",
       required: true,
     },
-    name: { type: String, required: true },
+    title: { type: String, required: true },
     budget: { type: Number, required: true },
-    duration: { startDate: { type: Date }, endDate: { type: Date } },
-    products: [{ type: mongoose.Schema.Types.ObjectId, ref: "Product" }],
-    targetAudience: { type: String }, // e.g., demographics or location
-    performance: {
-      clicks: { type: Number, default: 0 },
-      sales: { type: Number, default: 0 },
+    duration: {
+      startDate: { type: Date, required: true },
+      endDate: { type: Date, required: true },
+    },
+    durationInDays: {
+      type: Number, // Duration in days
     },
   },
   { timestamps: true }
 );
+
+// Middleware to calculate durationInDays
+campaignSchema.pre("save", function (next) {
+  if (this.duration.startDate && this.duration.endDate) {
+    const start = new Date(this.duration.startDate);
+    const end = new Date(this.duration.endDate);
+    const duration = Math.ceil((end - start) / (1000 * 60 * 60 * 24)); // Convert ms to days
+    this.durationInDays = duration > 0 ? duration : 0; // Ensure non-negative
+  } else {
+    this.durationInDays = 0; // Default if dates are invalid or missing
+  }
+  next();
+});
 
 module.exports = mongoose.model("Campaign", campaignSchema);

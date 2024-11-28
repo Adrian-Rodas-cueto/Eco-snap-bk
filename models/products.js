@@ -9,9 +9,12 @@ const productSchema = new mongoose.Schema(
     },
     name: { type: String, required: true },
     price: { type: Number, required: true },
-    supplier: { type: String }, // Supplier details or external API reference
     stock: { type: Number, default: 0 },
-    category: { type: String },
+    category: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Category",
+      required: true,
+    },
     thumbnail: { type: String }, // URL to the product image
   },
   { timestamps: true }

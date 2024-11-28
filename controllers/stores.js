@@ -152,14 +152,14 @@ class StoreController {
       }
 
       // Check if the user is the owner of the store
-      if (store.owner.toString() !== req.user.id) {
+      if (store.owner.toString() !== req.user.userId) {
         return res.status(403).json({
           success: false,
           message: "You are not authorized to delete this store.",
         });
       }
 
-      await store.remove();
+      await store.deleteOne();
 
       res.status(200).json({
         success: true,

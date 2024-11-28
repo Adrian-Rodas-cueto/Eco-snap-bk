@@ -34,7 +34,7 @@ class InventoryController {
       console.error("Error adding inventory:", error);
       res.status(500).json({
         success: false,
-        message: "Internal server error.",
+        message: error.message || "Internal server error.",
       });
     }
   }
@@ -63,7 +63,7 @@ class InventoryController {
       console.error("Error fetching inventory record:", error);
       res.status(500).json({
         success: false,
-        message: "Internal server error.",
+        message: error.message || "Internal server error.",
       });
     }
   }
@@ -84,7 +84,7 @@ class InventoryController {
       console.error("Error fetching inventory records:", error);
       res.status(500).json({
         success: false,
-        message: "Internal server error.",
+        message: error.message || "Internal server error.",
       });
     }
   }
@@ -116,7 +116,7 @@ class InventoryController {
       console.error("Error updating inventory record:", error);
       res.status(500).json({
         success: false,
-        message: "Internal server error.",
+        message: error.message || "Internal server error.",
       });
     }
   }
@@ -144,7 +144,7 @@ class InventoryController {
       console.error("Error deleting inventory record:", error);
       res.status(500).json({
         success: false,
-        message: "Internal server error.",
+        message: error.message || "Internal server error.",
       });
     }
   }
@@ -178,7 +178,7 @@ class InventoryController {
       console.error("Error monitoring inventory alerts:", error);
       res.status(500).json({
         success: false,
-        message: "Internal server error.",
+        message: error.message || "Internal server error.",
       });
     }
   }

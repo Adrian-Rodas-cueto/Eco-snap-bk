@@ -5,6 +5,7 @@ const Supplier = require("./supplier");
 const Inventory = require("./inventory");
 const CustomerBehavior = require("./customerBehavior");
 const Campaign = require("./campaign");
+const Category = require("./Category");
 
 // Export all models as an object
 module.exports = {
@@ -15,5 +16,6 @@ module.exports = {
   Inventory,
   CustomerBehavior,
   Campaign,
+  Category,
   // Add other models as needed
 };
