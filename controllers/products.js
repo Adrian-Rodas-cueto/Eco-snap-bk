@@ -4,52 +4,166 @@ class ProductController {
   // Add a new product
   async addProduct(req, res) {
     try {
-      const { store, name, price, stock, category, thumbnail } = req.body;
+      const { products } = req.body;
 
-      // Check if the store exists
-      const storeExists = await Store.findById(store);
-      if (!storeExists) {
-        return res.status(404).json({
+      if (!products || (Array.isArray(products) && products.length === 0)) {
+        return res.status(400).json({
           success: false,
-          message: "Store not found.",
+          message: "No product data provided.",
         });
       }
 
-      // Check if the category exists
-      const categoryExists = await Category.findById(category);
-      if (!categoryExists) {
-        return res.status(404).json({
-          success: false,
-          message: "Category not found.",
+      const validateAndProcessProduct = async (product) => {
+        const { store, name, price, stock, category, thumbnail } = product;
+
+        if (!store || !name || !price || !stock || !category) {
+          throw new Error("Missing required product fields.");
+        }
+
+        const storeExists = await Store.findById(store);
+        if (!storeExists) {
+          throw new Error(`Store with ID ${store} not found.`);
+        }
+
+        const categoryExists = await Category.findById(category);
+        if (!categoryExists) {
+          throw new Error(`Category with ID ${category} not found.`);
+        }
+
+        if (storeExists.owner.toString() !== req.user.userId) {
+          throw new Error(
+            `Unauthorized to add products to store with ID ${store}.`
+          );
+        }
+
+        const duplicateProduct = await Product.findOne({ store, name });
+        if (duplicateProduct) {
+          throw new Error(
+            `Product with name "${name}" already exists in the store.`
+          );
+        }
+
+        return { store, name, price, stock, category, thumbnail };
+      };
+
+      if (Array.isArray(products)) {
+        const processedProducts = [];
+        for (const product of products) {
+          processedProducts.push(await validateAndProcessProduct(product));
+        }
+
+        const createdProducts = await Product.insertMany(processedProducts, {
+          ordered: false,
+        });
+
+        return res.status(201).json({
+          success: true,
+          message: `${createdProducts.length} products created successfully.`,
+          products: createdProducts,
+        });
+      } else {
+        const processedProduct = await validateAndProcessProduct(products);
+        const createdProduct = await Product.create(processedProduct);
+
+        return res.status(201).json({
+          success: true,
+          message: "Product created successfully.",
+          product: createdProduct,
         });
       }
-
-      // Ensure the authenticated user is the owner of the store
-      if (storeExists.owner.toString() !== req.user.userId) {
-        return res.status(403).json({
-          success: false,
-          message: "You are not authorized to add products to this store.",
-        });
-      }
-
-      const newProduct = new Product({
-        store,
-        name,
-        price,
-        stock,
-        category,
-        thumbnail,
-      });
-
-      const product = await newProduct.save();
-
-      res.status(201).json({
-        success: true,
-        message: "Product created successfully.",
-        product,
-      });
     } catch (error) {
-      console.error("Error adding product:", error);
+      console.error("Error adding product(s):", error);
+      res.status(500).json({
+        success: false,
+        message: error.message || "Internal server error.",
+      });
+    }
+  }
+
+  // Add products in bulk from CSV
+  async addProductsFromCSV(req, res) {
+    try {
+      if (!req.file) {
+        return res.status(400).json({
+          success: false,
+          message: "Please upload a CSV file.",
+        });
+      }
+
+      const filePath = path.join(__dirname, "../uploads", req.file.filename);
+      const products = [];
+
+      fs.createReadStream(filePath)
+        .pipe(csvParser())
+        .on("data", (row) => {
+          products.push({
+            store: row.store,
+            name: row.name,
+            price: parseFloat(row.price),
+            stock: parseInt(row.stock, 10),
+            category: row.category,
+            thumbnail: row.thumbnail,
+          });
+        })
+        .on("end", async () => {
+          try {
+            const bulkProducts = [];
+            for (const product of products) {
+              const { store, name, category } = product;
+
+              if (!store || !name || !category) {
+                throw new Error(
+                  `Missing required fields for product: ${JSON.stringify(
+                    product
+                  )}`
+                );
+              }
+
+              const storeExists = await Store.findById(store);
+              if (!storeExists) {
+                throw new Error(`Store with ID ${store} not found.`);
+              }
+
+              const categoryExists = await Category.findById(category);
+              if (!categoryExists) {
+                throw new Error(`Category with ID ${category} not found.`);
+              }
+
+              const duplicateProduct = await Product.findOne({ store, name });
+              if (duplicateProduct) {
+                console.warn(`Duplicate product skipped: ${name}`);
+                continue;
+              }
+
+              bulkProducts.push(product);
+            }
+
+            if (bulkProducts.length === 0) {
+              throw new Error("No valid products to insert.");
+            }
+
+            const insertedProducts = await Product.insertMany(bulkProducts, {
+              ordered: false,
+            });
+
+            fs.unlinkSync(filePath); // Clean up uploaded file
+
+            res.status(201).json({
+              success: true,
+              message: `${insertedProducts.length} products added successfully.`,
+              products: insertedProducts,
+            });
+          } catch (error) {
+            console.error("Error processing CSV:", error);
+            fs.unlinkSync(filePath);
+            res.status(500).json({
+              success: false,
+              message: error.message || "Internal server error.",
+            });
+          }
+        });
+    } catch (error) {
+      console.error("Error adding products from CSV:", error);
       res.status(500).json({
         success: false,
         message: error.message || "Internal server error.",
