@@ -54,13 +54,16 @@ class StoreController {
 
   // Get a single store by ID
   async getStore(req, res) {
+    const user = req.user; // Assuming user info is stored in `req.user` from authentication middleware.
     try {
       const { id } = req.params;
 
+      // Find the store by ID and populate the owner field with basic information
       const store = await Store.findById(id).populate(
         "owner",
         "firstName lastName email"
       );
+
       if (!store) {
         return res.status(404).json({
           success: false,
@@ -68,7 +71,19 @@ class StoreController {
         });
       }
 
-      res.status(200).json({ success: true, store });
+      // Check if the current user is the owner of the store
+      if (store.owner._id.toString() !== user.userId.toString()) {
+        return res.status(403).json({
+          success: false,
+          message: "You are not authorized to access this store.",
+        });
+      }
+
+      // If the user is the owner, return the store details
+      res.status(200).json({
+        success: true,
+        store,
+      });
     } catch (error) {
       console.error("Error fetching store:", error);
       res.status(500).json({

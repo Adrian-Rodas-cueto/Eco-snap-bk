@@ -240,14 +240,6 @@ class ProductController {
         });
       }
 
-      // Ensure the authenticated user is the owner of the store
-      if (store.owner.toString() !== req.user.userId) {
-        return res.status(403).json({
-          success: false,
-          message: "You are not authorized to update this product.",
-        });
-      }
-
       // Validate the new category if updated
       if (updates.category) {
         const categoryExists = await Category.findById(updates.category);
@@ -287,15 +279,6 @@ class ProductController {
         return res.status(404).json({
           success: false,
           message: "Product not found.",
-        });
-      }
-
-      // Check if the authenticated user is the owner of the store where the product belongs
-      const store = await Store.findById(product.store);
-      if (store.owner.toString() !== req.user.userId) {
-        return res.status(403).json({
-          success: false,
-          message: "You are not authorized to delete this product.",
         });
       }
 

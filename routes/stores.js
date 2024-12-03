@@ -5,7 +5,7 @@ const authenticate = require("../middlewares/authenticate"); // Middleware for u
 const router = express.Router();
 
 router.post("/add", authenticate, StoreController.addStore);
-router.get("/get/:id", StoreController.getStore);
+router.get("/get/:id", authenticate, StoreController.getStore);
 router.get("/get", StoreController.getAllStores);
 router.put("/edit/:id", authenticate, StoreController.updateStore);
 router.delete("/delete/:id", authenticate, StoreController.deleteStore);
