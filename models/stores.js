@@ -19,4 +19,15 @@ const storeSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// Pre 'remove' middleware to delete related products automatically
+storeSchema.pre("remove", async function (next) {
+  try {
+    // Delete all products that belong to this store
+    await mongoose.model("Product").deleteMany({ store: this._id });
+    next();
+  } catch (error) {
+    next(error); // Pass the error to the next middleware or handler
+  }
+});
+
 module.exports = mongoose.model("Store", storeSchema);

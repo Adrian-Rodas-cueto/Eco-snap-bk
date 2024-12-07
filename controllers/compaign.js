@@ -4,7 +4,16 @@ class CampaignController {
   // Create a new campaign
   async createCampaign(req, res) {
     try {
-      const { store, title, budget, duration } = req.body;
+      const {
+        store,
+        title,
+        budget,
+        duration,
+        status,
+        products,
+        targetAudience,
+        targetLocation,
+      } = req.body;
 
       // Verify that the store exists
       const storeExists = await Store.findById(store);
@@ -21,6 +30,10 @@ class CampaignController {
         title,
         budget,
         duration,
+        status: status || "drafts", // Default status to "drafts" if not provided
+        products,
+        targetAudience,
+        targetLocation, // Accept the targetLocation without validation
       });
 
       await campaign.save();
@@ -44,7 +57,7 @@ class CampaignController {
     try {
       const { id } = req.params;
 
-      const campaign = await Campaign.findById(id).populate("store", "name");
+      const campaign = await Campaign.findById(id).populate("products", "name");
       if (!campaign) {
         return res.status(404).json({
           success: false,
@@ -68,7 +81,7 @@ class CampaignController {
   // Get all campaigns
   async getAllCampaigns(req, res) {
     try {
-      const campaigns = await Campaign.find().populate("store", "name");
+      const campaigns = await Campaign.find().populate("products", "name");
 
       res.status(200).json({
         success: true,
@@ -136,6 +149,50 @@ class CampaignController {
       });
     } catch (error) {
       console.error("Error deleting campaign:", error);
+      res.status(500).json({
+        success: false,
+        message: "Internal server error.",
+      });
+    }
+  }
+
+  // Change campaign status
+  async changeStatus(req, res) {
+    try {
+      const { id } = req.params;
+      const { status } = req.body;
+
+      const validStatuses = ["active", "completed", "paused", "drafts"];
+
+      // Validate the new status
+      if (!validStatuses.includes(status)) {
+        return res.status(400).json({
+          success: false,
+          message: `Invalid status. Allowed statuses are: ${validStatuses.join(
+            ", "
+          )}.`,
+        });
+      }
+
+      const campaign = await Campaign.findById(id);
+      if (!campaign) {
+        return res.status(404).json({
+          success: false,
+          message: "Campaign not found.",
+        });
+      }
+
+      // Update the status
+      campaign.status = status;
+      await campaign.save();
+
+      res.status(200).json({
+        success: true,
+        message: "Campaign status updated successfully.",
+        campaign,
+      });
+    } catch (error) {
+      console.error("Error updating campaign status:", error);
       res.status(500).json({
         success: false,
         message: "Internal server error.",

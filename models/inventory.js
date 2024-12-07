@@ -10,10 +10,6 @@ const inventorySchema = new mongoose.Schema(
     quantity: { type: Number, required: true },
     storageCost: { type: Number, default: 0 },
     lastMovement: { type: Date, default: Date.now },
-    alerts: {
-      lowStock: { type: Boolean, default: false },
-      highTimeWithoutMovement: { type: Boolean, default: false },
-    },
   },
   { timestamps: true }
 );

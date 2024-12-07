@@ -1,14 +1,13 @@
 const bcrypt = require("bcrypt");
-const { User, Store, Product } = require("../models");
+const { User } = require("../models");
 const JwtUtil = require("../utils/jwtUtil.js"); // Adjust the path as necessary
 
 class UserController {
   // Add a new user (Registration)
   async addUser(req, res) {
     try {
-      const { firstName, lastName, email, password, role } = req.body;
+      const { firstName, lastName, email, password, role, image } = req.body;
 
-      // Validate required fields
       if (!firstName || !lastName || !email || !password) {
         return res.status(400).json({
           success: false,
@@ -16,7 +15,6 @@ class UserController {
         });
       }
 
-      // Check if the email already exists
       const existingUser = await User.findOne({ email });
       if (existingUser) {
         return res
@@ -24,26 +22,24 @@ class UserController {
           .json({ success: false, message: "Email is already registered" });
       }
 
-      // Hash the password
       const salt = await bcrypt.genSalt(10);
       const hashedPassword = await bcrypt.hash(password, salt);
 
-      // Create the user
       const newUser = new User({
         firstName,
         lastName,
         email,
         password: hashedPassword,
-        role: role || "seller", // Default to 'seller' if role is not provided
+        role: role || "seller",
+        image,
       });
 
       await newUser.save();
 
-      // Generate JWT token
       const token = JwtUtil.generateToken(
         { userId: newUser._id, email: newUser.email },
         process.env.JWT_SECRET,
-        "1h" // 1 hour expiration
+        "1h"
       );
 
       res.status(201).json({
@@ -66,7 +62,6 @@ class UserController {
     try {
       const { email, password } = req.body;
 
-      // Check if the user exists
       const user = await User.findOne({ email });
       if (!user) {
         return res
@@ -74,7 +69,6 @@ class UserController {
           .json({ success: false, message: "Invalid email or password" });
       }
 
-      // Compare password
       const isMatch = await bcrypt.compare(password, user.password);
       if (!isMatch) {
         return res
@@ -82,11 +76,10 @@ class UserController {
           .json({ success: false, message: "Invalid email or password" });
       }
 
-      // Generate JWT token
       const token = JwtUtil.generateToken(
         { userId: user._id, email: user.email },
         process.env.JWT_SECRET,
-        "1h" // 1 hour expiration
+        "1h"
       );
 
       res.status(200).json({
@@ -97,6 +90,7 @@ class UserController {
           lastName: user.lastName,
           email: user.email,
           role: user.role,
+          image: user.image,
           createdAt: user.createdAt,
           updatedAt: user.updatedAt,
         },
@@ -116,7 +110,7 @@ class UserController {
       const { id } = req.params;
 
       const user = await User.findById(id).select(
-        "firstName lastName email role createdAt updatedAt"
+        "firstName lastName email role image createdAt updatedAt"
       );
 
       if (!user) {
@@ -134,11 +128,39 @@ class UserController {
     }
   }
 
+  // Get all users
+  async getAllUsers(req, res) {
+    try {
+      // Retrieve all users
+      const users = await User.find();
+
+      // If no users are found, return a 404 response
+      if (users.length === 0) {
+        return res.status(404).json({
+          success: false,
+          message: "No users found",
+        });
+      }
+
+      // Return the list of users
+      res.status(200).json({
+        success: true,
+        users,
+      });
+    } catch (error) {
+      console.error("Error fetching users:", error);
+      res.status(500).json({
+        success: false,
+        message: error.message || "Internal Server Error",
+      });
+    }
+  }
+
   // Edit a user's details
   async editUser(req, res) {
     try {
       const { id } = req.params;
-      const { firstName, lastName, email, role } = req.body;
+      const { firstName, lastName, email, role, image } = req.body;
 
       const user = await User.findById(id);
 
@@ -148,11 +170,11 @@ class UserController {
           .json({ success: false, message: "User not found" });
       }
 
-      // Update user details
       user.firstName = firstName || user.firstName;
       user.lastName = lastName || user.lastName;
       user.email = email || user.email;
       user.role = role || user.role;
+      user.image = image || user.image;
 
       await user.save();
 
@@ -169,11 +191,12 @@ class UserController {
     }
   }
 
-  // Handle forget password
-  async forgetPassword(req, res) {
+  // Delete a user
+  async deleteUser(req, res) {
     try {
-      const { email } = req.body;
-      const user = await User.findOne({ email });
+      const { id } = req.params;
+
+      const user = await User.findByIdAndDelete(id);
 
       if (!user) {
         return res
@@ -181,25 +204,100 @@ class UserController {
           .json({ success: false, message: "User not found" });
       }
 
-      // Generate JWT reset token
+      res.status(200).json({
+        success: true,
+        message: "User deleted successfully",
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: error.message || "Internal Server Error",
+      });
+    }
+  }
+
+  // Handle forgot password
+  async forgetPassword(req, res) {
+    try {
+      const { email } = req.body;
+
+      // Check if the user exists
+      const user = await User.findOne({ email });
+      if (!user) {
+        return res
+          .status(404)
+          .json({ success: false, message: "User not found" });
+      }
+
+      // Generate a JWT token for password reset
       const resetToken = JwtUtil.generateToken(
         { userId: user._id, email: user.email },
         process.env.JWT_SECRET,
-        "1h" // 1 hour expiration
+        "1h"
       );
 
-      // Save the token (or send it via email, depending on your flow)
-      // For Mongoose, you'd need to add fields like resetToken and resetTokenExpire to the User schema
-      user.resetPasswordToken = resetToken;
-      user.resetPasswordExpire = new Date(Date.now() + 3600000); // 1 hour from now
+      // Construct the password reset URL
+      const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
+
+      // Send the reset link via email (mocked here; replace with actual email logic)
+      console.log(`Password reset link: ${resetUrl}`); // Replace with email service like Nodemailer
+
+      res.status(200).json({
+        success: true,
+        message: "Password reset link sent to email",
+      });
+    } catch (error) {
+      console.error("Error sending password reset email:", error);
+      res.status(500).json({
+        success: false,
+        message: error.message || "Internal Server Error",
+      });
+    }
+  }
+
+  // Reset password
+  async resetPassword(req, res) {
+    try {
+      const { token } = req.query; // Token from the reset link
+      const { newPassword, confirmPassword } = req.body;
+
+      // Validate password match
+      if (newPassword !== confirmPassword) {
+        return res
+          .status(400)
+          .json({ success: false, message: "Passwords do not match" });
+      }
+
+      // Verify the JWT token
+      const decoded = JwtUtil.verifyToken(token, process.env.JWT_SECRET);
+      if (!decoded) {
+        return res
+          .status(400)
+          .json({ success: false, message: "Invalid or expired token" });
+      }
+
+      // Find the user by ID from the token
+      const user = await User.findById(decoded.userId);
+      if (!user) {
+        return res
+          .status(404)
+          .json({ success: false, message: "User not found" });
+      }
+
+      // Hash the new password
+      const salt = await bcrypt.genSalt(10);
+      const hashedPassword = await bcrypt.hash(newPassword, salt);
+
+      // Update the user's password
+      user.password = hashedPassword;
       await user.save();
 
       res.status(200).json({
         success: true,
-        message: "Password reset token sent to email",
-        resetToken,
+        message: "Password reset successfully",
       });
     } catch (error) {
+      console.error("Error resetting password:", error);
       res.status(500).json({
         success: false,
         message: error.message || "Internal Server Error",
@@ -213,7 +311,6 @@ class UserController {
       const { id } = req.params;
       const { currentPassword, newPassword, confirmPassword } = req.body;
 
-      // Validate that newPassword and confirmPassword are the same
       if (newPassword !== confirmPassword) {
         return res
           .status(400)
@@ -228,7 +325,6 @@ class UserController {
           .json({ success: false, message: "User not found" });
       }
 
-      // Verify current password
       const isMatch = await bcrypt.compare(currentPassword, user.password);
       if (!isMatch) {
         return res
@@ -236,7 +332,6 @@ class UserController {
           .json({ success: false, message: "Current password is incorrect" });
       }
 
-      // Hash new password and update
       const salt = await bcrypt.genSalt(10);
       const hashedNewPassword = await bcrypt.hash(newPassword, salt);
       user.password = hashedNewPassword;
@@ -245,7 +340,6 @@ class UserController {
       res.status(200).json({
         success: true,
         message: "Password changed successfully",
-        user,
       });
     } catch (error) {
       res.status(500).json({

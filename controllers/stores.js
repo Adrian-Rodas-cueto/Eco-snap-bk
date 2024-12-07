@@ -93,14 +93,22 @@ class StoreController {
     }
   }
 
-  // Get all stores
+  // Get all stores for a specific user
   async getAllStores(req, res) {
+    const userId = req.user.userId; // Assumes `req.user` contains the authenticated user's info
     try {
-      const stores = await Store.find().populate(
-        "owner",
-        "firstName lastName email"
-      );
+      // Find stores where the owner matches the userId
+      const stores = await Store.find({ owner: userId });
 
+      // If no stores are found
+      if (!stores.length) {
+        return res.status(404).json({
+          success: false,
+          message: "No stores found for the user.",
+        });
+      }
+
+      // Return the list of stores
       res.status(200).json({
         success: true,
         stores,
@@ -109,7 +117,7 @@ class StoreController {
       console.error("Error fetching stores:", error);
       res.status(500).json({
         success: false,
-        message: error.message,
+        message: error.message || "Internal server error.",
       });
     }
   }

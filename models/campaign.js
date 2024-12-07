@@ -2,11 +2,6 @@ const mongoose = require("mongoose");
 
 const campaignSchema = new mongoose.Schema(
   {
-    store: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Store",
-      required: true,
-    },
     title: { type: String, required: true },
     budget: { type: Number, required: true },
     duration: {
@@ -16,6 +11,36 @@ const campaignSchema = new mongoose.Schema(
     durationInDays: {
       type: Number, // Duration in days
     },
+    status: {
+      type: String,
+      enum: ["active", "completed", "paused", "drafts"],
+      default: "drafts", // Default status is 'drafts'
+    },
+    products: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Product", // Assuming you have a Product model
+      },
+    ],
+    targetAudience: {
+      gender: [
+        {
+          type: String,
+          enum: ["male", "female", "other"], // Adjust as needed
+        },
+      ],
+      age: [
+        {
+          type: String, // Age groups like "18-24", "25-34", etc.
+          enum: ["18-24", "25-34", "35-44", "45-54", "55-64", "65+"], // Possible age ranges
+        },
+      ],
+    },
+    targetLocation: [
+      {
+        type: String, // You can store location as a string, or if needed, reference to a Location model
+      },
+    ],
   },
   { timestamps: true }
 );

@@ -196,10 +196,21 @@ class ProductController {
     }
   }
 
-  // Get all products
+  // Get all products for a specific store
   async getAllProducts(req, res) {
+    const userId = req.user.userId; // Assuming `req.user` contains the authenticated user's info
     try {
-      const products = await Product.find()
+      // Find the store owned by the user
+      const store = await Store.findOne({ owner: userId });
+      if (!store) {
+        return res.status(404).json({
+          success: false,
+          message: "No store found for this user.",
+        });
+      }
+
+      // Find all products for the store
+      const products = await Product.find({ store: store._id })
         .populate("store", "name")
         .populate("category", "name description");
 

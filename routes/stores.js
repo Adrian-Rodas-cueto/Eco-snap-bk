@@ -6,7 +6,7 @@ const router = express.Router();
 
 router.post("/add", authenticate, StoreController.addStore);
 router.get("/get/:id", authenticate, StoreController.getStore);
-router.get("/get", StoreController.getAllStores);
+router.get("/get", authenticate, StoreController.getAllStores);
 router.put("/edit/:id", authenticate, StoreController.updateStore);
 router.delete("/delete/:id", authenticate, StoreController.deleteStore);
 
