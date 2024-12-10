@@ -197,29 +197,31 @@ class ProductController {
   }
 
   // Get all products for a specific store
-  async getAllProducts(req, res) {
-    const userId = req.user.userId; // Assuming `req.user` contains the authenticated user's info
+  async getAllProductsByStore(req, res) {
+    const { storeId } = req.params;
+
     try {
-      // Find the store owned by the user
-      const store = await Store.findOne({ owner: userId });
+      // Validate if the store exists
+      const store = await Store.findById(storeId);
       if (!store) {
         return res.status(404).json({
           success: false,
-          message: "No store found for this user.",
+          message: "Store not found.",
         });
       }
 
-      // Find all products for the store
-      const products = await Product.find({ store: store._id })
-        .populate("store", "name")
-        .populate("category", "name description");
+      // Fetch products associated with the store
+      const products = await Product.find({ store: storeId })
+        .populate("store", "name") // Populate store name
+        .populate("category", "name description"); // Populate category details
 
+      // Respond with the fetched products
       res.status(200).json({
         success: true,
         products,
       });
     } catch (error) {
-      console.error("Error fetching products:", error);
+      console.error("Error fetching products by storeId:", error);
       res.status(500).json({
         success: false,
         message: error.message || "Internal server error.",

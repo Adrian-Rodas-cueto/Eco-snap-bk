@@ -78,10 +78,25 @@ class CampaignController {
     }
   }
 
-  // Get all campaigns
+  // Get all campaigns by store ID
   async getAllCampaigns(req, res) {
     try {
-      const campaigns = await Campaign.find().populate("products", "name");
+      const { storeId } = req.params; // Extract storeId from params
+
+      // Check if the store exists
+      const storeExists = await Store.findById(storeId);
+      if (!storeExists) {
+        return res.status(404).json({
+          success: false,
+          message: "Store not found.",
+        });
+      }
+
+      // Find all campaigns for the store
+      const campaigns = await Campaign.find({ store: storeId }).populate(
+        "products",
+        "name"
+      );
 
       res.status(200).json({
         success: true,
@@ -91,7 +106,7 @@ class CampaignController {
       console.error("Error fetching campaigns:", error);
       res.status(500).json({
         success: false,
-        message: "Internal server error.",
+        message: error.message || "Internal server error.",
       });
     }
   }

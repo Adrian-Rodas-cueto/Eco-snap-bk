@@ -10,12 +10,23 @@ router.post("/add", authenticate, CampaignController.createCampaign);
 router.get("/get/:id", authenticate, CampaignController.getCampaign);
 
 // Get all campaigns
-router.get("/get", authenticate, CampaignController.getAllCampaigns);
+router.get(
+  "/get/all/:storeId",
+  authenticate,
+  CampaignController.getAllCampaigns
+);
 
 // Update a campaign
 router.put("/edit/:id", authenticate, CampaignController.updateCampaign);
 
 // Delete a campaign
 router.delete("/delete/:id", authenticate, CampaignController.deleteCampaign);
+
+// update Status
+router.patch(
+  "/update-status/:id",
+  authenticate,
+  CampaignController.changeStatus
+);
 
 module.exports = router;

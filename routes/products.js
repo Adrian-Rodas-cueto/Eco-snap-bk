@@ -12,7 +12,11 @@ router.post(
   ProductController.addProductsFromCSV
 );
 router.get("/get/:id", ProductController.getProduct);
-router.get("/get", authenticate, ProductController.getAllProducts);
+router.get(
+  "/get/all/:storeId",
+  authenticate,
+  ProductController.getAllProductsByStore
+);
 router.put("/edit/:id", authenticate, ProductController.updateProduct);
 router.delete("/delete/:id", authenticate, ProductController.deleteProduct);
 

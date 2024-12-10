@@ -41,6 +41,11 @@ const campaignSchema = new mongoose.Schema(
         type: String, // You can store location as a string, or if needed, reference to a Location model
       },
     ],
+    store: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Store",
+      required: true,
+    },
   },
   { timestamps: true }
 );

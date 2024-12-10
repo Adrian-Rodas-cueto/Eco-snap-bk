@@ -1,5 +1,4 @@
-const Inventory = require("../models");
-const Product = require("../models");
+const { Inventory, Product, Store } = require("../models");
 
 class InventoryController {
   // Add a new inventory record
@@ -69,12 +68,29 @@ class InventoryController {
   }
 
   // Get all inventory records
-  async getAllInventory(req, res) {
+  async getAllInventoryByStore(req, res) {
     try {
-      const inventoryRecords = await Inventory.find().populate(
-        "product",
-        "name price category"
-      );
+      const { storeId } = req.params; // Extract storeId from params
+
+      // Check if the store exists
+      const storeExists = await Store.findById(storeId);
+      if (!storeExists) {
+        return res.status(404).json({
+          success: false,
+          message: "Store not found.",
+        });
+      }
+
+      // Find inventory records where the product belongs to the given storeId
+      const inventoryRecords = await Inventory.find().populate({
+        path: "product", // Populate the 'product' field
+        select: "name", // Select product id and name
+        match: { store: storeId }, // Filter products by storeId
+        populate: {
+          path: "category", // Populate the 'category' field inside 'product'
+          select: "name description", // Select category details like name and description
+        },
+      });
 
       res.status(200).json({
         success: true,
