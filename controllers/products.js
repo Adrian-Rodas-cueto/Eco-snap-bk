@@ -1,4 +1,7 @@
 const { Product, Store, Category } = require("../models");
+const path = require("path");
+const fs = require("fs");
+const csvParser = require("csv-parser");
 
 class ProductController {
   // Add a new product
@@ -83,6 +86,25 @@ class ProductController {
   // Add products in bulk from CSV
   async addProductsFromCSV(req, res) {
     try {
+      // Extract store ID from params
+      const { storeId } = req.params;
+
+      if (!storeId) {
+        return res.status(400).json({
+          success: false,
+          message: "Store ID is required as a parameter.",
+        });
+      }
+
+      // Check if the store exists
+      const storeExists = await Store.findById(storeId);
+      if (!storeExists) {
+        return res.status(404).json({
+          success: false,
+          message: `Store with ID ${storeId} not found.`,
+        });
+      }
+
       if (!req.file) {
         return res.status(400).json({
           success: false,
@@ -90,14 +112,19 @@ class ProductController {
         });
       }
 
-      const filePath = path.join(__dirname, "../uploads", req.file.filename);
+      const filePath = path.join(
+        __dirname,
+        "../Public/files",
+        req.file.filename
+      );
       const products = [];
+      const duplicateProducts = [];
 
       fs.createReadStream(filePath)
         .pipe(csvParser())
         .on("data", (row) => {
           products.push({
-            store: row.store,
+            store: storeId, // Set the store ID from params
             name: row.name,
             price: parseFloat(row.price),
             stock: parseInt(row.stock, 10),
@@ -109,9 +136,9 @@ class ProductController {
           try {
             const bulkProducts = [];
             for (const product of products) {
-              const { store, name, category } = product;
+              const { name, category } = product;
 
-              if (!store || !name || !category) {
+              if (!name || !category) {
                 throw new Error(
                   `Missing required fields for product: ${JSON.stringify(
                     product
@@ -119,39 +146,47 @@ class ProductController {
                 );
               }
 
-              const storeExists = await Store.findById(store);
-              if (!storeExists) {
-                throw new Error(`Store with ID ${store} not found.`);
-              }
-
+              // Check if the category exists
               const categoryExists = await Category.findById(category);
               if (!categoryExists) {
                 throw new Error(`Category with ID ${category} not found.`);
               }
 
-              const duplicateProduct = await Product.findOne({ store, name });
+              // Check for duplicate products
+              const duplicateProduct = await Product.findOne({
+                store: storeId,
+                name,
+              });
               if (duplicateProduct) {
-                console.warn(`Duplicate product skipped: ${name}`);
+                duplicateProducts.push({
+                  name,
+                  reason: "Duplicate product in the same store.",
+                });
                 continue;
               }
 
               bulkProducts.push(product);
             }
 
-            if (bulkProducts.length === 0) {
+            if (bulkProducts.length === 0 && duplicateProducts.length === 0) {
               throw new Error("No valid products to insert.");
             }
 
-            const insertedProducts = await Product.insertMany(bulkProducts, {
-              ordered: false,
-            });
+            // Insert all valid products in bulk
+            const insertedProducts = bulkProducts.length
+              ? await Product.insertMany(bulkProducts, {
+                  ordered: false, // Continue inserting even if some fail
+                })
+              : [];
 
-            fs.unlinkSync(filePath); // Clean up uploaded file
+            // Clean up uploaded file
+            fs.unlinkSync(filePath);
 
             res.status(201).json({
               success: true,
-              message: `${insertedProducts.length} products added successfully.`,
+              message: `${insertedProducts.length} products added successfully. ${duplicateProducts.length} duplicates found.`,
               products: insertedProducts,
+              duplicates: duplicateProducts,
             });
           } catch (error) {
             console.error("Error processing CSV:", error);

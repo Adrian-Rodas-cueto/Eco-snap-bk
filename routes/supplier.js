@@ -12,7 +12,7 @@ router.delete("/delete/:id", SupplierController.deleteSupplier);
 
 // Route to add suppliers from CSV
 router.post(
-  "/upload",
+  "/upload/:storeId",
   upload.single("file"),
   SupplierController.addSuppliersFromCSV
 );

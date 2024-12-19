@@ -7,7 +7,7 @@ const router = express.Router();
 
 router.post("/add", authenticate, ProductController.addProduct);
 router.post(
-  "/add/csv",
+  "/add/csv/:storeId",
   upload.single("file"),
   ProductController.addProductsFromCSV
 );

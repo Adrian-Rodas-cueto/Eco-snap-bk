@@ -1,4 +1,7 @@
 const { Supplier, Store } = require("../models");
+const path = require("path");
+const fs = require("fs");
+const csvParser = require("csv-parser");
 
 class SupplierController {
   // Add a new supplier
@@ -173,6 +176,25 @@ class SupplierController {
   // Add suppliers in bulk from CSV
   async addSuppliersFromCSV(req, res) {
     try {
+      // Extract store ID from params
+      const { storeId } = req.params;
+
+      if (!storeId) {
+        return res.status(400).json({
+          success: false,
+          message: "Store ID is required as a parameter.",
+        });
+      }
+
+      // Validate the store ID
+      const storeExists = await Store.findById(storeId);
+      if (!storeExists) {
+        return res.status(404).json({
+          success: false,
+          message: `Store with ID ${storeId} not found.`,
+        });
+      }
+
       // Check if a file was uploaded
       if (!req.file) {
         return res.status(400).json({
@@ -181,15 +203,20 @@ class SupplierController {
         });
       }
 
-      const filePath = path.join(__dirname, "../uploads", req.file.filename);
+      const filePath = path.join(
+        __dirname,
+        "../Public/files",
+        req.file.filename
+      );
       const suppliers = [];
+      const duplicateSuppliers = [];
 
       // Parse the CSV file
       fs.createReadStream(filePath)
         .pipe(csvParser())
         .on("data", (row) => {
           suppliers.push({
-            store: row.store,
+            store: storeId, // Set the store ID from params
             name: row.name,
             rating: parseFloat(row.rating),
             products: parseInt(row.products, 10),
@@ -200,10 +227,10 @@ class SupplierController {
           try {
             const bulkSuppliers = [];
             for (const supplier of suppliers) {
-              const { store, name, rating, products, totalBusiness } = supplier;
+              const { name, rating, products, totalBusiness } = supplier;
 
               // Validate required fields
-              if (!store || !name || !rating || !products || !totalBusiness) {
+              if (!name || !rating || !products || !totalBusiness) {
                 throw new Error(
                   `Missing required fields for supplier: ${JSON.stringify(
                     supplier
@@ -211,16 +238,16 @@ class SupplierController {
                 );
               }
 
-              // Validate the store ID
-              const storeExists = await Store.findById(store);
-              if (!storeExists) {
-                throw new Error(`Store with ID ${store} not found.`);
-              }
-
               // Check for duplicate supplier
-              const duplicateSupplier = await Supplier.findOne({ store, name });
+              const duplicateSupplier = await Supplier.findOne({
+                store: storeId,
+                name,
+              });
               if (duplicateSupplier) {
-                console.warn(`Duplicate supplier skipped: ${name}`);
+                duplicateSuppliers.push({
+                  name,
+                  reason: "Duplicate supplier for the same store.",
+                });
                 continue;
               }
 
@@ -228,21 +255,24 @@ class SupplierController {
             }
 
             // Validate if there are valid suppliers to insert
-            if (bulkSuppliers.length === 0) {
+            if (bulkSuppliers.length === 0 && duplicateSuppliers.length === 0) {
               throw new Error("No valid suppliers to insert.");
             }
 
             // Insert suppliers into the database
-            const insertedSuppliers = await Supplier.insertMany(bulkSuppliers, {
-              ordered: false,
-            });
+            const insertedSuppliers = bulkSuppliers.length
+              ? await Supplier.insertMany(bulkSuppliers, {
+                  ordered: false, // Continue inserting even if some fail
+                })
+              : [];
 
             fs.unlinkSync(filePath); // Clean up uploaded file
 
             res.status(201).json({
               success: true,
-              message: `${insertedSuppliers.length} suppliers added successfully.`,
+              message: `${insertedSuppliers.length} suppliers added successfully. ${duplicateSuppliers.length} duplicates found.`,
               suppliers: insertedSuppliers,
+              duplicates: duplicateSuppliers,
             });
           } catch (error) {
             console.error("Error processing CSV:", error);

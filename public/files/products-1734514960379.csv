@@ -1,0 +1,5 @@
+name,price,stock,category,thumbnail
+Product A,100.50,20,6748010cb7adba927670d043,https://example.com/thumbnails/product-a.jpg
+Product B,50.75,10,6748010cb7adba927670d043,https://example.com/thumbnails/product-b.jpg
+Product C,200.00,5,6748010cb7adba927670d043,https://example.com/thumbnails/product-c.jpg
+Product D,150.25,15,6748010cb7adba927670d043,https://example.com/thumbnails/product-d.jpg
