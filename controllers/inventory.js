@@ -1,5 +1,4 @@
 const { Inventory, Product, Store } = require("../models");
-const formatResults = require("../utils/statisticsFormat");
 
 class InventoryController {
   // Add a new inventory record
