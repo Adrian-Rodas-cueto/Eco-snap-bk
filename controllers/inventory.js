@@ -150,7 +150,7 @@ class InventoryController {
         });
       }
 
-      await inventory.remove();
+      await inventory.deleteOne();
 
       res.status(200).json({
         success: true,
