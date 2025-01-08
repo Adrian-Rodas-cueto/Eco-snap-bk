@@ -10,6 +10,7 @@ const compaignRouter = require("./compaign");
 const genericRouter = require("./generic");
 const supplierRouter = require("./supplier");
 const statisticsRouter = require("./statistics");
+const chatRouter = require("./chat");
 
 Router.use("/user", userRouter);
 Router.use("/stores", storeRouter);
@@ -20,5 +21,6 @@ Router.use("/compaign", compaignRouter);
 Router.use("/generic", genericRouter);
 Router.use("/supplier", supplierRouter);
 Router.use("/statistics", statisticsRouter);
+Router.use("/chat", chatRouter);
 
 module.exports = Router;
